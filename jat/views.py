@@ -3,7 +3,7 @@ from django.shortcuts import render, get_object_or_404
 from django.urls import reverse_lazy
 from django.views import generic
 
-from jat.models import Repository, Introduction
+from jat.models import Repository, Introduction, Comment
 
 
 class RepositoryListView(generic.ListView):
@@ -51,7 +51,8 @@ class IntroductionCreateView(generic.CreateView):
             version = 1
         else:   # introduction이 있으면 version 최대값에서 +1
             version += 1
-        return {'repository': repository, 'version':version}
+        return {'repository': repository, 'version': version}
+
     def get_success_url(self):
         return reverse_lazy('jat:repository_detail', kwargs={'pk': self.kwargs['repository_pk']})
 
@@ -60,9 +61,68 @@ class IntroductionUpdateView(generic.UpdateView):
     model = Introduction
     fields = ['repository', 'version', 'contents', 'access']
     template_name_suffix = '_update'
-    success_url = reverse_lazy('jat:repository_detail')
+    # success_url = reverse_lazy('jat:repository_detail')
+
+    def get_initial(self):
+        repository = get_object_or_404(Repository, pk=self.kwargs['repository_pk'])
+        introduction = repository.introduction_set.aggregate(Max('version'))
+        version = introduction['version__max']
+        if version == None:  # introduction이 아예 없으면 version 기본값 1
+            version = 1
+        else:  # introduction이 있으면 version 최대값에서 +1
+            version += 1
+        return {'repository': repository, 'version': version}
+
+    def get_success_url(self):
+        return reverse_lazy('jat:repository_detail', kwargs={'pk': self.kwargs['repository_pk']})
 
 
 class IntroductionDeleteView(generic.DeleteView):
     model = Introduction
-    success_url = reverse_lazy('jat:repository_detail')
+    # success_url = reverse_lazy('jat:repository_detail')
+
+    def get_success_url(self):
+        return reverse_lazy('jat:repository_detail', kwargs={'pk': self.kwargs['repository_pk']})
+
+
+class CommentCreateView(generic.CreateView):    # repository/<int:repository_pk>/introduction/<int:introduction_pk>/comment/add/
+    model = Comment
+    fields = ['introduction', 'comment']    # '__all__'
+    template_name_suffix = '_create'    # comment_create.html
+
+    def get_initial(self):
+        introduction = get_object_or_404(Introduction, pk=self.kwargs['introduction_pk'])
+        return {'introduction' : introduction}
+
+
+    def get_success_url(self):      # jat:introduction_detail repository_pk pk
+        kwargs = {
+            'repository_pk': self.kwargs['repository_pk'],
+            'pk': self.kwargs['introduction_pk'],
+        }
+        return reverse_lazy('jat:introduction_detail', kwargs={kwargs})     # repository/<int:repository_pk>/introduction/<int:pk>/
+
+
+class CommentUpdateView(generic.UpdateView):
+    model = Comment
+    fields = ['introduction', 'comment']  # '__all__'
+    template_name_suffix = '_create'  # comment_create.html
+
+    def get_success_url(self):  # jat:introduction_detail repository_pk pk
+        kwargs = {
+            'repository_pk': self.kwargs['repository_pk'],
+            'pk': self.kwargs['introduction_pk'],
+        }
+        return reverse_lazy('jat:introduction_detail', kwargs={kwargs})  # repository/<int:repository_pk>/introduction/<int:pk>/
+
+
+class CommentDeleteView(generic.DeleteView):
+    model = Comment
+
+    def get_success_url(self):  # jat:introduction_detail repository_pk pk
+        kwargs = {
+            'repository_pk': self.kwargs['repository_pk'],
+            'pk': self.kwargs['introduction_pk'],
+        }
+        return reverse_lazy('jat:introduction_detail', kwargs={kwargs})  # repository/<int:repository_pk>/introduction/<int:pk>/
+
